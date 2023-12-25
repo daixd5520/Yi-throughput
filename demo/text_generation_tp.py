@@ -77,7 +77,12 @@ def main(args):
     model = AutoModelForCausalLM.from_pretrained(
         args.model, device_map="cuda", torch_dtype="auto", trust_remote_code=True
     )
-
+    #######################改：增start#########################
+    model.transformer.fwd_num = 0
+    model.transformer.seq_len = 0
+    model.transformer.encode_time = 0
+    model.transformer.decode_time = 0
+    #######################改：增end###########################
     model = deepspeed.init_inference(
         model, mp_size=int(os.environ["WORLD_SIZE"]), replace_with_kernel_inject=False
     )
@@ -109,6 +114,21 @@ def main(args):
     )
     if distributed.get_rank() == 0 and streamer is None:
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+    #######################改：增start#########################
+                #total_response += response
+                #print("                 seq len: %d " % (model.transformer.seq_len))
+                #print("                 tokens: %d " % (model.transformer.fwd_num - 1))
+                #print("                 encode dur: %.4f ms" % (model.transformer.encode_time))
+                #print("                 decode dur: %.4f ms" % (model.transformer.decode_time))
+                #print("                 seq len: %d, tokens: %d,encode dur: %.4f ms,decode dur: %.4f ms" % (model.transformer.seq_len,model.transformer.fwd_num - 1,model.transformer.encode_time,model.transformer.decode_time))
+    print("\n")
+    #print("Length of input ids(输入长度): %d" % (model.transformer.seq_len))
+    print("Tokens generated in 1 sec（第一秒生成token数）: %d" % (model.transformer.one_sec_tokens))
+    print("First token time（生成第一个token耗时）: %.4f ms" % (model.transformer.first_token_time))
+    print("Generated token count（总生成token数）:%d" % (model.transformer.fwd_num - 1))
+    print("Time per token（平均生成每个token用时）:%.4f ms" % ((model.transformer.encode_time+model.transformer.decode_time)/(model.transformer.fwd_num - 1)))
+    model.transformer.one_sec_tokens=0
+    #######################改：增end###########################
 
 
 if __name__ == "__main__":
